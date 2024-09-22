@@ -59,7 +59,7 @@ class Conta:
         self.__agencia = "0001"
         self.__numero = numero
         self.__saldo = 0
-        self.__historico = []
+        self.__historico = Historico()
 
     @classmethod
     def nova_conta(cls, cliente, numero):
@@ -88,22 +88,22 @@ class Conta:
     def depositar(self, valor):
         if valor > 0:
             self.__saldo += valor
+            self.__historico.adicionar_transacao(f"Depósito de R${valor:.2f}")
             print("\n+++ Depósito realizado com sucesso +++")
+            return True
         else:
             print("\n@@@ Operação falhou! O valor informado é inválido. @@@")
             return False
-        return True
 
     def sacar(self, valor):
-
         if self.__saldo >= valor:
             self.__saldo -= valor
-            self.__historico.append("+++ Saque realizado com sucesso +++")
+            self.__historico.adicionar_transacao(f"Saque de R${valor:.2f}")
+            print("\n+++ Saque realizado com sucesso +++")
             return True
-        elif self.__saldo < valor:
+        else:
             print("\n@@@ Operação falhou! Saldo insuficiente. @@@")
-        return False
-
+            return False
 
 class ContaCorrente(Conta):
     def __init__(self, cliente, numero, limite=500, limite_saques=3):
@@ -144,8 +144,8 @@ class Historico:
         self.__transacoes.append(
             {
                 "tipo": transacao.__class__.__name__,
-                "valor": transacao.valor,
-                "data": transacao.data_hora,
+                "transacao": transacao,
+                "data": datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
             }
         )
 
@@ -161,11 +161,6 @@ class Transacao(ABC):
     def registrar(self, conta):
         pass
 
-    @property
-    @abstractmethod
-    def data_hora(self):
-        pass
-
     @staticmethod
     def data_hora_atual():
         return datetime.now()
@@ -174,9 +169,6 @@ class Transacao(ABC):
     def valor_decimal(valor):
         return float(valor)
 
-    @staticmethod
-    def data_hora_formatada(data_hora):
-        return data_hora.strftime("%d/%m/%Y %H:%M:%S")
 
     def __str__(self):
         return f"{self.data_hora} - {self.valor}"
@@ -286,6 +278,7 @@ def sacar(clientes):
     cliente.realizar_transacao(conta, transacao)
 
 
+# Função exibir_extrato corrigida
 def exibir_extrato(clientes):
     cpf = input("Informe o CPF do cliente: ")
     cliente = filtrar_cliente(cpf, clientes)
@@ -299,9 +292,13 @@ def exibir_extrato(clientes):
         return
 
     print("\n================ EXTRATO ================")
-    for transacao in conta.historico.transacoes:
-        print(transacao)
-
+    if len(conta.historico.transacoes) == 0:
+        print("Nenhuma transação realizada.")
+    else:
+        for transacao in conta.historico.transacoes:
+            print(transacao.data)
+            print("\t\t",transacao.transacao)
+    print(f"\nSaldo atual: R${conta.saldo:.2f}")
 
 def criar_cliente(clientes):
     cpf = input("Informe o CPF (somente números): ")

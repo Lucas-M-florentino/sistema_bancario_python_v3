@@ -50,7 +50,7 @@ class PessoaFisica(Cliente):
     def __str__(self):
         return (f"Nome: {self.nome}\n"
                 f"Data_nascimento: {self.data_nascimento}\n"
-                f"Cpf: {self.get_cpf()}\n"
+                f"Cpf: {self.cpf()}\n"
                 f"Endereco: {self.endereco}")
 
 class Conta:
@@ -88,7 +88,6 @@ class Conta:
     def depositar(self, valor):
         if valor > 0:
             self.__saldo += valor
-            self.__historico.adicionar_transacao(f"Depósito de R${valor:.2f}")
             print("\n+++ Depósito realizado com sucesso +++")
             return True
         else:
@@ -98,7 +97,6 @@ class Conta:
     def sacar(self, valor):
         if self.__saldo >= valor:
             self.__saldo -= valor
-            self.__historico.adicionar_transacao(f"Saque de R${valor:.2f}")
             print("\n+++ Saque realizado com sucesso +++")
             return True
         else:
@@ -144,7 +142,7 @@ class Historico:
         self.__transacoes.append(
             {
                 "tipo": transacao.__class__.__name__,
-                "transacao": transacao,
+                "valor": transacao.valor,
                 "data": datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
             }
         )
@@ -165,18 +163,10 @@ class Transacao(ABC):
     def data_hora_atual():
         return datetime.now()
 
-    @staticmethod
-    def valor_decimal(valor):
-        return float(valor)
-
-
-    def __str__(self):
-        return f"{self.data_hora} - {self.valor}"
-
 
 class Saque(Transacao):
     def __init__(self, valor):
-        self.__valor = self.valor_decimal(valor)
+        self.__valor = valor
         self.__data_hora = self.data_hora_atual()
 
     @property
@@ -188,15 +178,17 @@ class Saque(Transacao):
         return self.__data_hora
 
     def registrar(self, conta):
-        if conta.sacar(self.__valor):
+        sucesso_saque = conta.sacar(self.__valor)
+        if sucesso_saque:
             self.__data_hora = self.data_hora_atual()
+            conta.historico.adicionar_transacao(self)
         else:
-            raise ValueError("Saldo insuficiente")
-
+            print("Saldo insuficiente!")
+            
 
 class Deposito(Transacao):
     def __init__(self, valor):
-        self.__valor = self.valor_decimal(valor)
+        self.__valor = valor
         self.__data_hora = self.data_hora_atual()
 
     @property
@@ -208,8 +200,11 @@ class Deposito(Transacao):
         return self.__data_hora
 
     def registrar(self, conta):
-        conta.depositar(self.__valor)
-        self.__data_hora = self.data_hora_atual()
+        sucesso_deposito = conta.depositar(self.__valor)
+        
+        if sucesso_deposito:
+            self.__data_hora = self.data_hora_atual()
+            conta.historico.adicionar_transacao(self)
 
 
 def menu():
@@ -292,13 +287,20 @@ def exibir_extrato(clientes):
         return
 
     print("\n================ EXTRATO ================")
-    if len(conta.historico.transacoes) == 0:
-        print("Nenhuma transação realizada.")
+    transacoes = conta.historico.transacoes
+
+    extrato = ""
+    if not transacoes:
+        extrato = "Não foram realizadas movimentações."
     else:
-        for transacao in conta.historico.transacoes:
-            print(transacao.data)
-            print("\t\t",transacao.transacao)
-    print(f"\nSaldo atual: R${conta.saldo:.2f}")
+        for transacao in transacoes:
+
+            extrato += f"{transacao['data']}\n\t{transacao['tipo']}:\n\tR$ {transacao['valor']:.2f}\n"
+
+    print(extrato)
+    print(f"\nSaldo:\n\tR$ {conta.saldo:.2f}")
+    print("==========================================")
+
 
 def criar_cliente(clientes):
     cpf = input("Informe o CPF (somente números): ")
